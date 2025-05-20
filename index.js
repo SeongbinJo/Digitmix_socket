@@ -11,7 +11,7 @@ const server = http.createServer(app)
 
 const io = new Server(server, {
     cors: {
-        origin: `*`,
+        origin: import.meta.env.SIDEPAGE6_DOMAIN,
     },
 })
 
