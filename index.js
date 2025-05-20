@@ -18,9 +18,24 @@ const io = new Server(server, {
 io.on(`connection`, (socket) => {
     console.log(`유저 연결됨 : `, socket.id)
 
-    socket.on(`join_room`, (roomId) => {
+    socket.on(`create_room`, (roomId) => {
         socket.join(roomId)
-        console.log(`${socket.id}가 방 ${roomId}에 참가함.`)
+        console.log(`방 생성됨 : `, roomId)
+        socket.emit(`room_created`, roomId)
+    })
+
+    socket.on(`join_room`, (roomId) => {
+        const room = io.sockets.adapter.rooms
+
+        if (room.has(roomId)) {
+            socket.join(roomId)
+            console.log(`${socket.id}가 방 ${roomId}에 참가함.`)
+        } else {
+            console.log(`${roomId} 방이 존재하지 않음.`)
+            socket.emit(`room_not_found`, roomId)
+        }
+
+
     })
 
     socket.on(`send_message`, ({ roomId, message }) => {
