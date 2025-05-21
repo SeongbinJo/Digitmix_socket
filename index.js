@@ -74,7 +74,7 @@ io.on(`connection`, (socket) => {
                 (user) => user.socketId !== socket.id
             )
 
-            io.to(roomId).emit(`room_user_list`, usersInRoom[roomId])
+            socket.to(roomId).emit(`room_user_list`, usersInRoom[roomId])
             console.log(`유저(${userEmail}) 방 나감`)
         } else {
             console.log(`qnpf`)
