@@ -68,7 +68,6 @@ io.on(`connection`, (socket) => {
     })
 
     socket.on(`quit_room`, ({ roomId, userEmail }) => {
-        console.log(`quit_room 불림. ${roomId}, ${userEmail}`)
         if (roomId && usersInRoom[roomId]) {
             usersInRoom[roomId] = usersInRoom[roomId].filter(
                 (user) => user.socketId !== socket.id
@@ -76,8 +75,21 @@ io.on(`connection`, (socket) => {
 
             socket.to(roomId).emit(`room_user_list`, usersInRoom[roomId])
             console.log(`유저(${userEmail}) 방 나감`)
-        } else {
-            console.log(`qnpf`)
+        }
+    })
+
+    socket.on(`remove_room`, ({ roomId, userEmail }) => {
+        if (roomId && usersInRoom[roomId]) {
+            // 방의 유저들 내보내기
+            usersInRoom[roomId] = []
+
+            // 방에있던 유저들에게 방에 아무도 없음을 알림.
+            io.to(roomId).emit(`room_user_list`, usersInRoom[roomId])
+
+            // 방 삭제
+            delete usersInRoom[roomId]
+
+            console.log(`방장이 방을 삭제했음.`)
         }
     })
 
