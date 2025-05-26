@@ -25,15 +25,17 @@ io.on(`connection`, (socket) => {
     console.log(`유저 연결됨 : `, socket.id)
 
     socket.on(`create_room`, ({ roomId, userEmail }) => {
+        console.log(`creat_room 실행, roomID: ${roomId}, userEmail: ${userEmail}`)
         socket.join(roomId)
         socket.roomId = roomId
 
         // 생성한 roomId로 배열 생성성
         if (!usersInRoom[roomId]) usersInRoom[roomId] = []
+
         usersInRoom[roomId].push({
             socketId: socket.id,
             email: userEmail
-        })
+        }) 
 
         socket.emit(`room_created`, roomId)
 
@@ -90,6 +92,12 @@ io.on(`connection`, (socket) => {
             delete usersInRoom[roomId]
 
             console.log(`방장이 방을 삭제했음.`)
+        }
+    })
+
+    socket.on(`send_camera_position`, ({ roomId, userEmail, cameraPos }) => {
+        if( roomId && usersInRoom[roomId]) {
+            socket.to(roomId).emit(`user_moved_position`, { userEmail, cameraPos })
         }
     })
 
