@@ -97,7 +97,8 @@ io.on(`connection`, (socket) => {
 
     socket.on(`send_camera_position`, ({ roomId, userEmail, cameraPos }) => {
         if( roomId && usersInRoom[roomId]) {
-            socket.to(roomId).emit(`user_moved_position`, { userEmail, cameraPos })
+            socket.to(roomId).emit(`user_moved_position`, { roomId, userEmail, cameraPos })
+            console.log(`user moved position 실행.`)
         }
     })
 
