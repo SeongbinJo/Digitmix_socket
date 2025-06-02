@@ -19,29 +19,49 @@ const io = new Server(server, {
     },
 })
 
-const usersInRoom = {} // { roomId: [ { socket.id, email } ] }
+const usersInRoom = {
+    users: [],
+    boxes: []
+}
+// 구조
+// usersInRoom = {
+//   roomId1: {
+//     users: [ { socketId, email }, ... ],
+//     boxes: [ ... ] // 방에 하나만 존재해야 하는 boxes 배열
+//   },
+//   roomId2: {
+//     users: [ ... ],
+//     boxes: [ ... ]
+//   }
+// }
 
 io.on(`connection`, (socket) => {
     console.log(`유저 연결됨 : `, socket.id)
 
-    socket.on(`create_room`, ({ roomId, userEmail }) => {
+    socket.on(`create_room`, ({ roomId, userEmail, boxes }) => {
         console.log(`creat_room 실행, roomID: ${roomId}, userEmail: ${userEmail}`)
         socket.join(roomId)
         socket.roomId = roomId
 
         // 생성한 roomId로 배열 생성
-        if (!usersInRoom[roomId]) usersInRoom[roomId] = []
+        if (!usersInRoom[roomId]) {
+            usersInRoom[roomId] = {
+                users: [],
+                boxes: boxes
+            }
+        }
 
-        usersInRoom[roomId].push({
+        usersInRoom[roomId].users.push({
             socketId: socket.id,
             email: userEmail
-        }) 
+        })
 
-        io.to(roomId).emit(`room_user_list_createRoom`, usersInRoom[roomId])
+        io.to(roomId).emit(`room_user_list_createRoom`, usersInRoom[roomId].users)
 
         socket.emit(`room_created`, roomId)
 
         console.log(`방 생성됨 : `, roomId)
+        console.log(`생성된 방의 boxes: `, boxes.length)
     })
 
     socket.on(`join_room`, ({ roomId, userEmail }) => {
@@ -53,16 +73,16 @@ io.on(`connection`, (socket) => {
 
             // 유저 목록 갱신
             if (!usersInRoom[roomId]) usersInRoom[roomId] = []
-            usersInRoom[roomId].push({
+            usersInRoom[roomId].users.push({
                 socketId: socket.id,
                 email: userEmail
             })
 
             // 참가 성공을 알림
-            socket.emit(`join_room_success`, { roomId, userEmail })
+            socket.emit(`join_room_success`, { roomId, userEmail, boxes: usersInRoom[roomId].boxes })
 
             // 나를 포함한 같은 방의 모든 유저에게 전송
-            io.to(roomId).emit(`room_user_list_joinRoom`, usersInRoom[roomId])
+            io.to(roomId).emit(`room_user_list_joinRoom`, { users: usersInRoom[roomId].users, boxes: usersInRoom[roomId].boxes })
             console.log(`접속한 방의 유저: ${usersInRoom[roomId]}`)
 
             console.log(`유저(Email: ${userEmail}, socket.id: ${socket.id})가 방 ${roomId}에 참가함.`)
@@ -74,34 +94,53 @@ io.on(`connection`, (socket) => {
 
     socket.on(`quit_room`, ({ roomId, userEmail }) => {
         if (roomId && usersInRoom[roomId]) {
-            usersInRoom[roomId] = usersInRoom[roomId].filter(
+            usersInRoom[roomId] = usersInRoom[roomId].users.filter(
                 (user) => user.socketId !== socket.id
             )
 
+            socket.leave(roomId)
+
             socket.to(roomId).emit(`other_user_quitRoom`, userEmail)
-            // socket.to(roomId).emit(`room_user_list_quitRoom`, usersInRoom[roomId])
             console.log(`유저(${userEmail}) 방 나감`)
         }
     })
 
-    socket.on(`remove_room`, ({ roomId, userEmail }) => {
+    socket.on("remove_room", ({ roomId, userEmail }) => {
         if (roomId && usersInRoom[roomId]) {
-            // 방의 유저들 내보내기
             usersInRoom[roomId] = []
 
-            // 방에있던 유저들에게 방에 아무도 없음을 알림.
-            io.to(roomId).emit(`room_user_list_removeRoom`)
+            io.to(roomId).emit("room_user_list_removeRoom")
 
-            // 방 삭제
+            const users = usersInRoom[roomId]
+            users.forEach((user) => {
+                const targetSocket = io.sockets.sockets.get(user.socketId)
+                if (targetSocket) {
+                    targetSocket.leave(roomId)
+                }
+            })
+
             delete usersInRoom[roomId]
 
-            console.log(`방장이 방을 삭제했음.`)
+            console.log(`방장이 방을 삭제함`)
         }
     })
 
     socket.on(`send_camera_position`, ({ roomId, userEmail, cameraPos }) => {
-        if( roomId && usersInRoom[roomId]) {
+        if (roomId && usersInRoom[roomId]) {
             socket.to(roomId).emit(`user_moved_position`, { roomId, userEmail, cameraPos })
+        }
+    })
+
+    socket.on(`created_block`, ({ roomId, createdBoxInfo }) => {
+        if (roomId && usersInRoom[roomId].boxes) {
+            const updatedBoxes = usersInRoom[roomId].boxes
+            updatedBoxes.push(createdBoxInfo)
+            usersInRoom[roomId].boxes = updatedBoxes
+            console.log(`블럭이 생성됨: `, createdBoxInfo)
+
+            socket.to(roomId).emit(`users_created_block`, { createdBoxInfo })
+        } else {
+            console.log(`뿌에에엙!! roomID: ${roomId}`)
         }
     })
 
@@ -116,11 +155,16 @@ io.on(`connection`, (socket) => {
         const roomId = socket.roomId
 
         if (roomId && usersInRoom[roomId]) {
-            usersInRoom[roomId] = usersInRoom[roomId].filter(
+            usersInRoom[roomId] = usersInRoom[roomId].users.filter(
                 (user) => user.socketId !== socket.id
             )
 
-            io.to(roomId).emit(`room_user_list_disconnect`, usersInRoom[roomId])
+            io.to(roomId).emit(`room_user_list_disconnect`, usersInRoom[roomId].users)
+
+            if (!usersInRoom[roomId].users) {
+                delete usersInRoom[roomId]
+                console.log(`방을 나간 후 유저가 없으므로 방을 삭제합니다.`)
+            }
             console.log(`방 나간 후, 유저 연결 종료 :`, socket.id)
         } else {
             console.log(`소속된 방이 없으므로 그냥 유저 연결 종료 :`, socket.id)
