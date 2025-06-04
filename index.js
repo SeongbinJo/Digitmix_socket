@@ -71,8 +71,12 @@ io.on(`connection`, (socket) => {
             socket.join(roomId)
             socket.roomId = roomId // 소켓에 roomId 저장장
 
+            if (!usersInRoom[roomId]) {
+                // usersInRoom[roomId] = []
+                return
+            }
+
             // 유저 목록 갱신
-            if (!usersInRoom[roomId]) usersInRoom[roomId] = []
             usersInRoom[roomId].users.push({
                 socketId: socket.id,
                 email: userEmail
