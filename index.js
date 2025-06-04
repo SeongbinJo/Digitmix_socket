@@ -73,6 +73,7 @@ io.on(`connection`, (socket) => {
 
             if (!usersInRoom[roomId]) {
                 // usersInRoom[roomId] = []
+                console.log(`해당 방이 없음!!`)
                 return
             }
 
@@ -98,7 +99,7 @@ io.on(`connection`, (socket) => {
 
     socket.on(`quit_room`, ({ roomId, userEmail }) => {
         if (roomId && usersInRoom[roomId]) {
-            usersInRoom[roomId] = usersInRoom[roomId].users.filter(
+            usersInRoom[roomId].users = usersInRoom[roomId].users.filter(
                 (user) => user.socketId !== socket.id
             )
 
