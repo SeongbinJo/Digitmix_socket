@@ -144,6 +144,21 @@ io.on(`connection`, (socket) => {
         }
     })
 
+    socket.on(`deleted_block`, ({ roomId, deletedBoxInfo }) => {
+        if (roomId && usersInRoom[roomId].boxes) {
+            const updatedBoxes = usersInRoom[roomId].boxes.filter(
+                box => box.id !== deletedBoxInfo.id
+            )
+            usersInRoom[roomId].boxes = updatedBoxes
+
+            console.log(`블럭이 삭제됨: `, deletedBoxInfo)
+
+            socket.to(roomId).emit(`users_deleted_block`, { deletedBoxInfo })
+        } else {
+            console.log(`블럭 삭제 실패! 잘못된 roomId(${roomId}) 또는 box(${deletedBoxInfo}) 상태.`)
+        }
+    })
+
     socket.on(`send_message`, ({ roomId, message }) => {
         socket.to(roomId).emit(`receive_message`, {
             message,
