@@ -105,7 +105,13 @@ io.on(`connection`, (socket) => {
 
             socket.leave(roomId)
 
-            socket.to(roomId).emit(`other_user_quitRoom`, userEmail)
+            if (usersInRoom[roomId].users.length === 0) {
+                console.log(`내가 마지막 유저이므로 방도 삭제함.`)
+                delete usersInRoom[roomId]
+            } else {
+                socket.to(roomId).emit(`other_user_quitRoom`, userEmail)
+            }
+
             console.log(`유저(${userEmail}) 방 나감`)
         }
     })
@@ -175,7 +181,7 @@ io.on(`connection`, (socket) => {
         const roomId = socket.roomId
 
         if (roomId && usersInRoom[roomId]) {
-            usersInRoom[roomId] = usersInRoom[roomId].users.filter(
+            usersInRoom[roomId].users = usersInRoom[roomId].users.filter(
                 (user) => user.socketId !== socket.id
             )
 
@@ -187,7 +193,7 @@ io.on(`connection`, (socket) => {
             }
             console.log(`방 나간 후, 유저 연결 종료 :`, socket.id)
         } else {
-            console.log(`소속된 방이 없으므로 그냥 유저 연결 종료 :`, socket.id)
+            console.log(`소속된 방이 없으므로 그냥 유저 연결 종료 :`, usersInRoom[roomId])
         }
     })
 })
